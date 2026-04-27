@@ -33,3 +33,10 @@ go.work.sum
 
 # Project binary
 /awg-go
+
+# Local working files (image backups, scratch tools)
+*.bak
+internal/icons/*.bak
+internal/icons/tint_distribution.png
+amnezia_tint*.png
+analyze_png.py
