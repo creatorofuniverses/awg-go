@@ -115,6 +115,12 @@ func Compose(tint *color.RGBA, static bool) ([]byte, error) {
 	}
 	cacheMu.Unlock()
 
+	// Premultiplied-add for colour, but force output alpha to 255 wherever the
+	// tint mask has presence. Some desktop environments dim or recolour tray
+	// icons that contain sub-255 alpha pixels (interpreting them as "symbolic"
+	// or applying panel-foreground tinting), so we hand the panel a fully
+	// opaque pixel and let the colour math itself produce the soft gradient
+	// (bright tint where mask alpha is high, dark/black where it's low).
 	b := baseImg.Bounds()
 	out := image.NewNRGBA(b)
 	draw.Draw(out, b, baseImg, b.Min, draw.Src)
@@ -125,12 +131,23 @@ func Compose(tint *color.RGBA, static bool) ([]byte, error) {
 				continue
 			}
 			oc := out.NRGBAAt(x, y)
-			inv := 255 - uint16(ta)
-			r := (uint16(tint.R)*uint16(ta) + uint16(oc.R)*inv) / 255
-			g := (uint16(tint.G)*uint16(ta) + uint16(oc.G)*inv) / 255
-			bl := (uint16(tint.B)*uint16(ta) + uint16(oc.B)*inv) / 255
-			a := uint16(ta) + uint16(oc.A)*inv/255
-			out.SetNRGBA(x, y, color.NRGBA{uint8(r), uint8(g), uint8(bl), uint8(a)})
+			ba := oc.A
+
+			r := uint16(oc.R)*uint16(ba)/255 + uint16(tint.R)*uint16(ta)/255
+			g := uint16(oc.G)*uint16(ba)/255 + uint16(tint.G)*uint16(ta)/255
+			bl := uint16(oc.B)*uint16(ba)/255 + uint16(tint.B)*uint16(ta)/255
+
+			if r > 255 {
+				r = 255
+			}
+			if g > 255 {
+				g = 255
+			}
+			if bl > 255 {
+				bl = 255
+			}
+
+			out.SetNRGBA(x, y, color.NRGBA{uint8(r), uint8(g), uint8(bl), 0xff})
 		}
 	}
 
