@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image/color"
 	"log/slog"
 	"sync"
 
@@ -186,13 +187,14 @@ func trim(s string) string {
 }
 
 func (t *Tray) refreshIcon() {
-	state := icons.StateDisconnected
-	tint := icons.Palettes[icons.FlavourMocha][0]
+	var tint *color.RGBA
 	if cur := t.Registry.ActiveName(); cur != "" {
-		state = icons.StateConnected
-		tint = t.Registry.Get(cur).Colour
+		if tn := t.Registry.Get(cur); tn != nil {
+			c := tn.Colour
+			tint = &c
+		}
 	}
-	png, err := icons.Compose(state, tint)
+	png, err := icons.Compose(tint)
 	if err != nil {
 		t.Log.Error("compose icon", "err", err)
 		return

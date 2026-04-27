@@ -6,87 +6,126 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"sync"
 )
 
-//go:embed mask.png
-var maskPNG []byte
+//go:embed base.png
+var basePNG []byte
 
-type State int
-
-const (
-	StateDisconnected State = iota
-	StateConnected
-)
-
-type cacheKey struct {
-	state State
-	rgba  color.RGBA
-}
+//go:embed tint.png
+var tintPNG []byte
 
 var (
-	cacheMu  sync.Mutex
-	cache    = map[cacheKey][]byte{}
-	maskOnce sync.Once
-	maskImg  *image.NRGBA
-	maskErr  error
+	assetsOnce sync.Once
+	baseImg    *image.NRGBA
+	tintImg    *image.NRGBA
+	assetsErr  error
 )
 
-func loadMask() {
-	maskOnce.Do(func() {
-		img, err := png.Decode(bytes.NewReader(maskPNG))
+func loadAssets() {
+	assetsOnce.Do(func() {
+		b, err := decodeNRGBA(basePNG)
 		if err != nil {
-			maskErr = fmt.Errorf("decode mask: %w", err)
+			assetsErr = fmt.Errorf("decode base.png: %w", err)
 			return
 		}
-		b := img.Bounds()
-		nrgba := image.NewNRGBA(b)
-		for y := b.Min.Y; y < b.Max.Y; y++ {
-			for x := b.Min.X; x < b.Max.X; x++ {
-				_, _, _, a := img.At(x, y).RGBA()
-				nrgba.SetNRGBA(x, y, color.NRGBA{0xff, 0xff, 0xff, uint8(a >> 8)})
-			}
+		baseImg = b
+		t, err := decodeNRGBA(tintPNG)
+		if err != nil {
+			assetsErr = fmt.Errorf("decode tint.png: %w", err)
+			return
 		}
-		maskImg = nrgba
+		tintImg = t
 	})
 }
 
-func Compose(state State, tint color.RGBA) ([]byte, error) {
-	loadMask()
-	if maskErr != nil {
-		return nil, maskErr
+func decodeNRGBA(data []byte) (*image.NRGBA, error) {
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
 	}
-	key := cacheKey{state, tint}
-	cacheMu.Lock()
-	if b, ok := cache[key]; ok {
+	b := img.Bounds()
+	out := image.NewNRGBA(b)
+	draw.Draw(out, b, img, b.Min, draw.Src)
+	return out, nil
+}
+
+var (
+	cacheMu       sync.Mutex
+	cacheTinted   = map[color.RGBA][]byte{}
+	cacheBaseOnly []byte
+)
+
+// Compose renders the tray icon. nil tint means "base only" (used for the
+// disconnected state, and for tunnels with colour="none"). A non-nil tint
+// renders the tint mask in that colour on top of the base.
+func Compose(tint *color.RGBA) ([]byte, error) {
+	loadAssets()
+	if assetsErr != nil {
+		return nil, assetsErr
+	}
+
+	if tint == nil {
+		cacheMu.Lock()
+		if cacheBaseOnly != nil {
+			out := cacheBaseOnly
+			cacheMu.Unlock()
+			return out, nil
+		}
 		cacheMu.Unlock()
-		return b, nil
+		bs, err := encode(baseImg)
+		if err != nil {
+			return nil, err
+		}
+		cacheMu.Lock()
+		cacheBaseOnly = bs
+		cacheMu.Unlock()
+		return bs, nil
+	}
+
+	key := *tint
+	cacheMu.Lock()
+	if bs, ok := cacheTinted[key]; ok {
+		cacheMu.Unlock()
+		return bs, nil
 	}
 	cacheMu.Unlock()
 
-	if state == StateDisconnected {
-		grey := uint8(float64(tint.R)*0.299 + float64(tint.G)*0.587 + float64(tint.B)*0.114)
-		grey = uint8(int(grey)/2 + 64)
-		tint = color.RGBA{grey, grey, grey, tint.A}
-	}
-
-	b := maskImg.Bounds()
+	b := baseImg.Bounds()
 	out := image.NewNRGBA(b)
+	draw.Draw(out, b, baseImg, b.Min, draw.Src)
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		for x := b.Min.X; x < b.Max.X; x++ {
-			a := maskImg.NRGBAAt(x, y).A
-			out.SetNRGBA(x, y, color.NRGBA{tint.R, tint.G, tint.B, a})
+			ta := tintImg.NRGBAAt(x, y).A
+			if ta == 0 {
+				continue
+			}
+			oc := out.NRGBAAt(x, y)
+			inv := 255 - uint16(ta)
+			r := (uint16(tint.R)*uint16(ta) + uint16(oc.R)*inv) / 255
+			g := (uint16(tint.G)*uint16(ta) + uint16(oc.G)*inv) / 255
+			bl := (uint16(tint.B)*uint16(ta) + uint16(oc.B)*inv) / 255
+			a := uint16(ta) + uint16(oc.A)*inv/255
+			out.SetNRGBA(x, y, color.NRGBA{uint8(r), uint8(g), uint8(bl), uint8(a)})
 		}
 	}
 
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, out); err != nil {
+	bs, err := encode(out)
+	if err != nil {
 		return nil, err
 	}
-	bs := buf.Bytes()
 	cacheMu.Lock()
-	cache[key] = bs
+	cacheTinted[key] = bs
 	cacheMu.Unlock()
 	return bs, nil
+}
+
+func encode(img image.Image) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

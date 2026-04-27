@@ -7,9 +7,31 @@ import (
 	"testing"
 )
 
-func TestCompose_ConnectedTintsToColour(t *testing.T) {
-	red := color.RGBA{0xff, 0, 0, 0xff}
-	out, err := Compose(StateConnected, red)
+func TestCompose_NilTintRendersBaseOnly(t *testing.T) {
+	a, err := Compose(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Compose(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if &a[0] != &b[0] {
+		t.Fatal("expected cached identical slice for nil tint")
+	}
+	img, err := png.Decode(bytes.NewReader(a))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, alpha := img.At(16, 16).RGBA()
+	if alpha == 0 {
+		t.Fatal("base centre pixel is transparent — base.png mis-authored?")
+	}
+}
+
+func TestCompose_TintRendersIndicator(t *testing.T) {
+	red := color.RGBA{0xff, 0x00, 0x00, 0xff}
+	out, err := Compose(&red)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,40 +39,17 @@ func TestCompose_ConnectedTintsToColour(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, g, b, a := img.At(16, 16).RGBA()
-	if a == 0 {
-		t.Fatal("centre pixel transparent")
-	}
-	if r>>8 < 200 || g>>8 > 50 || b>>8 > 50 {
-		t.Fatalf("centre not red: r=%d g=%d b=%d", r>>8, g>>8, b>>8)
+	r, g, b, _ := img.At(24, 24).RGBA()
+	if r>>8 < 200 || g>>8 > 60 || b>>8 > 60 {
+		t.Fatalf("indicator centre not red: r=%d g=%d b=%d", r>>8, g>>8, b>>8)
 	}
 }
 
-func TestCompose_DisconnectedIsGreyscale(t *testing.T) {
-	red := color.RGBA{0xff, 0, 0, 0xff}
-	out, err := Compose(StateDisconnected, red)
-	if err != nil {
-		t.Fatal(err)
-	}
-	img, _ := png.Decode(bytes.NewReader(out))
-	r, g, b, _ := img.At(16, 16).RGBA()
-	if absDiff(r, g) > 0x1000 || absDiff(g, b) > 0x1000 {
-		t.Fatalf("not greyscale: r=%d g=%d b=%d", r, g, b)
-	}
-}
-
-func TestCompose_Caches(t *testing.T) {
-	red := color.RGBA{0xff, 0, 0, 0xff}
-	a, _ := Compose(StateConnected, red)
-	b, _ := Compose(StateConnected, red)
+func TestCompose_TintCaches(t *testing.T) {
+	red := color.RGBA{0xff, 0x00, 0x00, 0xff}
+	a, _ := Compose(&red)
+	b, _ := Compose(&red)
 	if &a[0] != &b[0] {
-		t.Fatal("expected cached identical slice")
+		t.Fatal("expected cached identical slice for same tint")
 	}
-}
-
-func absDiff(a, b uint32) uint32 {
-	if a > b {
-		return a - b
-	}
-	return b - a
 }
