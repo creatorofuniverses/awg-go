@@ -35,16 +35,21 @@ jobs:
       - name: Package
         env:
           VERSION: ${{ github.ref_name }}
+          ARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          tarball="awg-go-${VERSION}-linux-${{ matrix.goarch }}.tar.gz"
+          binary="awg-go-${VERSION}-linux-${ARCH}"
+          tarball="awg-go-${VERSION}-linux-${ARCH}.tar.gz"
+          # standalone binary
+          cp awg-go "dist/${binary}"
+          # tarball with binary + units + docs + sudoers template
           tar -czf "dist/${tarball}" \
             awg-go \
             awg-go.desktop \
             awg-go.service \
             README.md \
             docs/sudoers-awg-go
-          ( cd dist && sha256sum "${tarball}" > "${tarball}.sha256" )
+          ( cd dist && sha256sum "${binary}" "${tarball}" > "awg-go-${VERSION}-linux-${ARCH}.sha256" )
 
       - uses: actions/upload-artifact@v4
         with:

@@ -13,23 +13,60 @@ Inspired by [yd-go](https://github.com/slytomcat/yd-go).
 - Desktop notifications on state changes.
 - Status via netlink — no privileges required for monitoring.
 
-## Build
+## Install
+
+Pick one of the three options. All three produce the same `~/.local/bin/awg-go`;
+they differ only in where the binary comes from. After installing, do the
+[post-install setup](#post-install-setup) — sudoers + config-dir permissions —
+and then pick an [autostart](#autostart) method.
+
+### Option 1: Tarball (recommended)
+
+Grab the latest tarball from the [Releases page][releases] for your
+architecture (`linux-amd64` or `linux-arm64`). It contains the binary plus
+`.desktop`/`.service` units and the sudoers template:
 
 ```sh
-./build.sh
+tar -xzf awg-go-vX.Y.Z-linux-amd64.tar.gz
+install -D -m 0755 awg-go ~/.local/bin/awg-go
+# keep awg-go.desktop, awg-go.service, docs/sudoers-awg-go around — you'll
+# reference them from the post-install and autostart sections below.
 ```
 
-Or directly:
+### Option 2: Standalone binary
+
+If you only want the binary (e.g. you'll write your own unit file):
 
 ```sh
-go build -o awg-go .
+curl -L -o awg-go \
+  https://github.com/kowalski/awg-go/releases/download/vX.Y.Z/awg-go-vX.Y.Z-linux-amd64
+install -D -m 0755 awg-go ~/.local/bin/awg-go
 ```
 
-## Run
+You'll need `awg-go.desktop`, `awg-go.service`, and `docs/sudoers-awg-go`
+fetched separately (from the same release or this repo) for the sections
+below.
+
+### Option 3: Build from source
+
+Requires Go ≥ 1.26 and a checkout of this repo.
+
+```sh
+./build.sh                                    # bakes git-describe version in
+install -D -m 0755 awg-go ~/.local/bin/awg-go
+```
+
+[releases]: https://github.com/kowalski/awg-go/releases
+
+(`~/.local/bin` is on `PATH` by default on most modern desktops; if not, add it
+to your shell init.)
+
+## Post-install setup
 
 awg-go itself runs as your user. To bring tunnels up and down it shells out to
-`sudo -n awg-quick`, so you need a sudoers entry. Copy `docs/sudoers-awg-go`
-into `/etc/sudoers.d/awg-go` after replacing `%user%` with your username:
+`sudo -n awg-quick`, so you need a sudoers entry. Install
+`docs/sudoers-awg-go` (shipped in the tarball, or take it from this repo) and
+substitute your username:
 
 ```sh
 sudo install -m 0440 docs/sudoers-awg-go /etc/sudoers.d/awg-go
@@ -51,17 +88,6 @@ sudo chmod 755 /etc/amnezia/amneziawg
 
 After this, `ls /etc/amnezia/amneziawg/` works as your user but `cat <file>.conf`
 still requires root.
-
-## Install the binary
-
-Once `./build.sh` has produced `awg-go`, drop it somewhere on `PATH`:
-
-```sh
-install -D -m 0755 awg-go ~/.local/bin/awg-go
-```
-
-(`~/.local/bin` is on `PATH` by default on most modern desktops; if not, add it
-to your shell init.)
 
 ## Autostart
 
@@ -101,12 +127,10 @@ session starts and stops when it ends. The binary path is `%h/.local/bin/awg-go`
 
 ## Update
 
-When a new version is published, rebuild from source and replace the binary:
+Replace `~/.local/bin/awg-go` with the new binary (download the new tarball or
+binary, or `git pull && ./build.sh` if you built from source), then:
 
 ```sh
-cd /path/to/awg-go
-git pull
-./build.sh
 install -m 0755 awg-go ~/.local/bin/awg-go
 ```
 
