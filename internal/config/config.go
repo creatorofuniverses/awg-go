@@ -9,14 +9,30 @@ import (
 )
 
 type Config struct {
-	LogLevel string `toml:"log_level"`
+	LogLevel string                  `toml:"log_level"`
+	Palette  PaletteConfig           `toml:"palette"`
+	Tunnels  map[string]TunnelConfig `toml:"tunnels"`
+}
+
+type PaletteConfig struct {
+	Flavour string `toml:"flavour"` // "" means "use default (mocha)"
+}
+
+type TunnelConfig struct {
+	Colour string `toml:"colour"` // "" | "none" | "#rrggbb"
 }
 
 const defaultBody = `log_level = "info"
 
-# Reserved for v2:
+# Catppuccin palette flavour: mocha (default), latte, frappe, macchiato.
+# [palette]
+# flavour = "mocha"
+
+# Per-tunnel overrides:
+#   colour = "#rrggbb"   custom hex colour for the indicator dot
+#   colour = "none"      never render the indicator dot for this tunnel
 # [tunnels.office]
-# colour = "#3b82f6"
+# colour = "#a6e3a1"
 `
 
 func Default() Config { return Config{LogLevel: "info"} }
