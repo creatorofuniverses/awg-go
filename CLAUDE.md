@@ -43,7 +43,11 @@ touches everything else; everything else stays narrow.
   separator → tunnel list → separator → `Quit indicator (tunnels stay up)`.
   Active tunnel is marked in the list both via `mi.Check()` and a `● ` label
   prefix, because Hyprland/waybar and friends often don't render the
-  checkmark — don't drop the prefix in favour of Check() alone. Menu state
+  checkmark — don't drop the prefix in favour of Check() alone. Each
+  separator is *both* a real `systray.AddSeparator()` and a disabled
+  menu-item with a unicode `──────────────` label (`addVisualSeparator()`),
+  for the same reason: some compositors don't draw the native separator,
+  so the disabled item gives a guaranteed visible divider. Menu state
   (label prefix + Disconnect enable/disable) is refreshed via
   `refreshMenuState()` on init and after every netlink event.
 - Status: netlink `LinkUpdate` subscription, fall back to 5s `/sys/class/net/` poll if subscribe fails.

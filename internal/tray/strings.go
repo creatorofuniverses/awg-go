@@ -7,6 +7,7 @@ const (
 	itemNoTunnels      = "No tunnels configured"
 	itemBinaryMissing  = "AmneziaWG not installed"
 	activeMarker       = "● "
+	separatorLine      = "──────────────"
 	notifyConnected    = "Connected to %s"
 	notifyDisconnected = "Disconnected from %s"
 	notifyDropped      = "Tunnel %s went down"

@@ -50,10 +50,12 @@ func (t *Tray) onReady() {
 	} else {
 		t.disconnect = systray.AddMenuItem(itemDisconnect, "")
 		systray.AddSeparator()
+	addVisualSeparator()
 		t.buildTunnelItems()
 	}
 
 	systray.AddSeparator()
+	addVisualSeparator()
 	t.quit = systray.AddMenuItem(itemQuit, "")
 
 	t.refreshMenuState()
@@ -82,6 +84,11 @@ func (t *Tray) buildTunnelItems() {
 			}
 		}()
 	}
+}
+
+func addVisualSeparator() {
+	mi := systray.AddMenuItem(separatorLine, "")
+	mi.Disable()
 }
 
 func (t *Tray) refreshMenuState() {
