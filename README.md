@@ -3,6 +3,14 @@
 Linux system-tray indicator for [AmneziaWG](https://docs.amnezia.org/) tunnels.
 Inspired by [yd-go](https://github.com/slytomcat/yd-go).
 
+## Screenshot
+
+![awg-go tray menu on Hyprland](./docs/assets/how-it-looks-like.png)
+
+*Hyprland + waybar; per-tunnel colours from the default
+[Catppuccin](https://catppuccin.com/) palette. To override the palette flavour
+or pin specific colours per tunnel, see [Customisation](#customisation).*
+
 ## Features (v1)
 
 - Connected / disconnected indication in the tray.
