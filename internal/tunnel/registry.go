@@ -34,7 +34,7 @@ func (r *Registry) Discover() error {
 			Name:    name,
 			Backend: r.backend,
 			Path:    p,
-			Colour:  icons.ColourFromName(name),
+			Colour:  icons.ColourFromName(name, icons.Palettes[icons.FlavourMocha]),
 		}
 	}
 	return nil
@@ -42,7 +42,7 @@ func (r *Registry) Discover() error {
 
 func (r *Registry) Add(t *Tunnel) {
 	if t.Colour.A == 0 {
-		t.Colour = icons.ColourFromName(t.Name)
+		t.Colour = icons.ColourFromName(t.Name, icons.Palettes[icons.FlavourMocha])
 	}
 	r.mu.Lock()
 	r.m[t.Name] = t

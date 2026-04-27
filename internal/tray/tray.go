@@ -187,7 +187,7 @@ func trim(s string) string {
 
 func (t *Tray) refreshIcon() {
 	state := icons.StateDisconnected
-	tint := icons.Palette[0]
+	tint := icons.Palettes[icons.FlavourMocha][0]
 	if cur := t.Registry.ActiveName(); cur != "" {
 		state = icons.StateConnected
 		tint = t.Registry.Get(cur).Colour
