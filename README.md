@@ -118,7 +118,8 @@ A running tray will not pick up a new binary until restarted.
 ## Configuration
 
 A default config file is created on first run at
-`~/.config/awg-go/config.toml`. Currently only `log_level` is honoured.
+`~/.config/awg-go/config.toml`. See [Customisation](#customisation) below
+for the available keys.
 
 ## Customisation
 
@@ -170,7 +171,7 @@ The icon is composed at runtime from two embedded PNGs in `internal/icons/`:
 To replace the shape, drop in your own PNGs at the same paths and rebuild.
 Both files are embedded via `go:embed`.
 
-## Limitations (v1)
+## Limitations
 
 - Single-active only: clicking another tunnel auto-disconnects the current one.
 - AmneziaWG only — WireGuard support is planned.
