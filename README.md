@@ -8,6 +8,8 @@ Inspired by [yd-go](https://github.com/slytomcat/yd-go).
 - Connected / disconnected indication in the tray.
 - One auto-coloured icon per discovered config under `/etc/amnezia/amneziawg/`.
 - Bring tunnels up and down from the tray menu (single-active model).
+- Active tunnel marked in the menu with a `●` prefix.
+- One-click **Disconnect active tunnel** entry at the top of the menu.
 - Desktop notifications on state changes.
 - Status via netlink — no privileges required for monitoring.
 
