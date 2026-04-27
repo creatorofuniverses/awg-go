@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"image/color"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/kowalski/awg-go/internal/backend"
 	"github.com/kowalski/awg-go/internal/config"
+	"github.com/kowalski/awg-go/internal/icons"
 	"github.com/kowalski/awg-go/internal/netwatch"
 	"github.com/kowalski/awg-go/internal/notify"
 	"github.com/kowalski/awg-go/internal/privsh"
@@ -27,27 +31,34 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() { <-sigs; cancel() }()
 
-	logLevel := slog.LevelInfo
 	cfgPath, _ := config.DefaultPath()
-	cfg, err := config.Load(cfgPath)
-	if err == nil {
-		switch cfg.LogLevel {
-		case "debug":
-			logLevel = slog.LevelDebug
-		case "warn":
-			logLevel = slog.LevelWarn
-		case "error":
-			logLevel = slog.LevelError
-		}
+	cfg, cfgErr := config.Load(cfgPath)
+
+	logLevel := slog.LevelInfo
+	switch cfg.LogLevel {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
-	if err != nil {
-		log.Warn("config load failed; using defaults", "err", err)
+	if cfgErr != nil {
+		log.Warn("config load failed; using defaults", "err", cfgErr)
 	}
 	log.Info("awg-go starting", "version", version)
 
+	flavour, ok := icons.ParseFlavour(cfg.Palette.Flavour)
+	if !ok && cfg.Palette.Flavour != "" {
+		log.Warn("unknown palette flavour; falling back to mocha", "flavour", cfg.Palette.Flavour)
+	}
+	palette := icons.Palettes[flavour]
+
+	resolve := makeResolver(log, cfg.Tunnels, palette)
+
 	be := backend.NewAWG(privsh.Sudo{})
-	reg := tunnel.NewRegistry(be.ConfigDir(), be.Name())
+	reg := tunnel.NewRegistry(be.ConfigDir(), be.Name(), resolve)
 	if err := reg.Discover(); err != nil {
 		log.Error("config discovery", "err", err)
 	}
@@ -71,4 +82,37 @@ func main() {
 	}
 	t.Run()
 	_ = watcher.Close()
+}
+
+func makeResolver(log *slog.Logger, overrides map[string]config.TunnelConfig, palette []color.RGBA) tunnel.ColourResolver {
+	return func(name string) (color.RGBA, bool) {
+		if tc, ok := overrides[name]; ok && tc.Colour != "" {
+			lower := strings.ToLower(strings.TrimSpace(tc.Colour))
+			if lower == "none" {
+				return color.RGBA{}, true
+			}
+			if rgba, ok := parseHexColour(lower); ok {
+				return rgba, false
+			}
+			log.Warn("invalid tunnel colour; falling back to auto-hash", "tunnel", name, "value", tc.Colour)
+		}
+		return icons.ColourFromName(name, palette), false
+	}
+}
+
+func parseHexColour(s string) (color.RGBA, bool) {
+	s = strings.TrimPrefix(s, "#")
+	if len(s) != 6 {
+		return color.RGBA{}, false
+	}
+	val, err := strconv.ParseUint(s, 16, 32)
+	if err != nil {
+		return color.RGBA{}, false
+	}
+	return color.RGBA{
+		R: uint8(val >> 16),
+		G: uint8(val >> 8),
+		B: uint8(val),
+		A: 0xff,
+	}, true
 }

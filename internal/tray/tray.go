@@ -189,7 +189,7 @@ func trim(s string) string {
 func (t *Tray) refreshIcon() {
 	var tint *color.RGBA
 	if cur := t.Registry.ActiveName(); cur != "" {
-		if tn := t.Registry.Get(cur); tn != nil {
+		if tn := t.Registry.Get(cur); tn != nil && !tn.NoTint {
 			c := tn.Colour
 			tint = &c
 		}

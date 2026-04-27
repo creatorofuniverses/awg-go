@@ -8,4 +8,5 @@ type Tunnel struct {
 	Path    string
 	Up      bool
 	Colour  color.RGBA
+	NoTint  bool
 }

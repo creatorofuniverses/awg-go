@@ -1,23 +1,29 @@
 package tunnel
 
 import (
+	"image/color"
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"github.com/kowalski/awg-go/internal/icons"
 )
 
+// ColourResolver returns the resolved colour for a tunnel name, plus whether
+// the tunnel should be rendered without an indicator (no tint) when connected.
+// It is supplied by main and encapsulates: explicit per-tunnel overrides
+// (TOML), the default palette, and "none" semantics.
+type ColourResolver func(name string) (rgba color.RGBA, noTint bool)
+
 type Registry struct {
-	dir     string
-	backend string
+	dir      string
+	backend  string
+	resolver ColourResolver
 
 	mu sync.RWMutex
 	m  map[string]*Tunnel
 }
 
-func NewRegistry(dir, backend string) *Registry {
-	return &Registry{dir: dir, backend: backend, m: map[string]*Tunnel{}}
+func NewRegistry(dir, backend string, resolver ColourResolver) *Registry {
+	return &Registry{dir: dir, backend: backend, resolver: resolver, m: map[string]*Tunnel{}}
 }
 
 func (r *Registry) Discover() error {
@@ -30,11 +36,13 @@ func (r *Registry) Discover() error {
 	r.m = map[string]*Tunnel{}
 	for _, p := range matches {
 		name := strings.TrimSuffix(filepath.Base(p), ".conf")
+		c, nt := r.resolver(name)
 		r.m[name] = &Tunnel{
 			Name:    name,
 			Backend: r.backend,
 			Path:    p,
-			Colour:  icons.ColourFromName(name, icons.Palettes[icons.FlavourMocha]),
+			Colour:  c,
+			NoTint:  nt,
 		}
 	}
 	return nil
@@ -42,7 +50,9 @@ func (r *Registry) Discover() error {
 
 func (r *Registry) Add(t *Tunnel) {
 	if t.Colour.A == 0 {
-		t.Colour = icons.ColourFromName(t.Name, icons.Palettes[icons.FlavourMocha])
+		c, nt := r.resolver(t.Name)
+		t.Colour = c
+		t.NoTint = nt
 	}
 	r.mu.Lock()
 	r.m[t.Name] = t
