@@ -26,8 +26,9 @@ type Tray struct {
 	Notify   notify.Notifier
 	Ctx      context.Context
 
-	items map[string]*systray.MenuItem
-	quit  *systray.MenuItem
+	items      map[string]*systray.MenuItem
+	disconnect *systray.MenuItem
+	quit       *systray.MenuItem
 
 	pendingDownMu sync.Mutex
 	pendingDown   string // tunnel name the user explicitly requested down
@@ -47,12 +48,15 @@ func (t *Tray) onReady() {
 		mi := systray.AddMenuItem(itemBinaryMissing, "")
 		mi.Disable()
 	} else {
+		t.disconnect = systray.AddMenuItem(itemDisconnect, "")
+		systray.AddSeparator()
 		t.buildTunnelItems()
 	}
 
 	systray.AddSeparator()
 	t.quit = systray.AddMenuItem(itemQuit, "")
 
+	t.refreshMenuState()
 	t.refreshIcon()
 	go t.loop()
 }
@@ -69,6 +73,7 @@ func (t *Tray) buildTunnelItems() {
 		mi := systray.AddMenuItem(tn.Name, tn.Path)
 		if tn.Up {
 			mi.Check()
+			mi.SetTitle(activeMarker + tn.Name)
 		}
 		t.items[tn.Name] = mi
 		go func() {
@@ -79,7 +84,51 @@ func (t *Tray) buildTunnelItems() {
 	}
 }
 
+func (t *Tray) refreshMenuState() {
+	active := t.Registry.ActiveName()
+	for name, mi := range t.items {
+		if name == active {
+			mi.SetTitle(activeMarker + name)
+		} else {
+			mi.SetTitle(name)
+		}
+	}
+	if t.disconnect != nil {
+		if active == "" {
+			t.disconnect.Disable()
+		} else {
+			t.disconnect.Enable()
+		}
+	}
+}
+
+func (t *Tray) handleDisconnect() {
+	cur := t.Registry.ActiveName()
+	if cur == "" {
+		return
+	}
+	t.pendingDownMu.Lock()
+	t.pendingDown = cur
+	t.pendingDownMu.Unlock()
+	if err := t.Backend.Down(t.Ctx, cur); err != nil {
+		t.pendingDownMu.Lock()
+		if t.pendingDown == cur {
+			t.pendingDown = ""
+		}
+		t.pendingDownMu.Unlock()
+		t.notifyErr(notifyDownFailed, cur, err)
+	}
+}
+
 func (t *Tray) loop() {
+	disconnectCh := make(chan struct{})
+	if t.disconnect != nil {
+		go func() {
+			for range t.disconnect.ClickedCh {
+				disconnectCh <- struct{}{}
+			}
+		}()
+	}
 	for {
 		select {
 		case <-t.Ctx.Done():
@@ -88,6 +137,8 @@ func (t *Tray) loop() {
 		case <-t.quit.ClickedCh:
 			systray.Quit()
 			return
+		case <-disconnectCh:
+			t.handleDisconnect()
 		case ev, ok := <-t.Watcher.Events():
 			if !ok {
 				return
@@ -111,6 +162,7 @@ func (t *Tray) handleEvent(ev netwatch.StateEvent) {
 			mi.Uncheck()
 		}
 	}
+	t.refreshMenuState()
 	t.refreshIcon()
 	switch {
 	case ev.Up && !wasUp:

@@ -2,9 +2,11 @@ package tray
 
 const (
 	titleApp           = "AmneziaWG"
-	itemQuit           = "Quit"
+	itemQuit           = "Quit indicator (tunnels stay up)"
+	itemDisconnect     = "Disconnect active tunnel"
 	itemNoTunnels      = "No tunnels configured"
 	itemBinaryMissing  = "AmneziaWG not installed"
+	activeMarker       = "● "
 	notifyConnected    = "Connected to %s"
 	notifyDisconnected = "Disconnected from %s"
 	notifyDropped      = "Tunnel %s went down"

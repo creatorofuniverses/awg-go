@@ -39,6 +39,13 @@ touches everything else; everything else stays narrow.
 
 - Privilege model: `sudo -n awg-quick up/down` via NOPASSWD sudoers entry.
 - Single-active model: clicking another tunnel auto-downs the current one.
+- Tray menu layout: `Disconnect active tunnel` (disabled when none up) →
+  separator → tunnel list → separator → `Quit indicator (tunnels stay up)`.
+  Active tunnel is marked in the list both via `mi.Check()` and a `● ` label
+  prefix, because Hyprland/waybar and friends often don't render the
+  checkmark — don't drop the prefix in favour of Check() alone. Menu state
+  (label prefix + Disconnect enable/disable) is refreshed via
+  `refreshMenuState()` on init and after every netlink event.
 - Status: netlink `LinkUpdate` subscription, fall back to 5s `/sys/class/net/` poll if subscribe fails.
 - Per-config colour: deterministic FNV hash → palette modulo. Default palette
   is Catppuccin Mocha; the user can switch flavour via `[palette] flavour = …`
