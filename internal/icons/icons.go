@@ -59,6 +59,22 @@ var (
 	cacheStatic   []byte
 )
 
+// softAlpha controls whether the tint mask's alpha gradient drives output
+// alpha (true) or is collapsed to fully-opaque output (false). Default false
+// is the safe choice for trays that mishandle sub-255 alpha (Hyprland/waybar).
+// Set once at startup via SetSoftAlpha; callers should not toggle at runtime.
+var softAlpha = false
+
+// SetSoftAlpha configures whether tinted output preserves mask alpha (true) or
+// flattens to fully opaque pixels (false, default). Call at most once before
+// any Compose call — invalidates the tinted cache.
+func SetSoftAlpha(v bool) {
+	cacheMu.Lock()
+	softAlpha = v
+	cacheTinted = map[color.RGBA][]byte{}
+	cacheMu.Unlock()
+}
+
 // Compose renders the tray icon.
 //
 //   - (nil, false)  → base only. Disconnected state, or tunnels with colour="none".
@@ -115,12 +131,10 @@ func Compose(tint *color.RGBA, static bool) ([]byte, error) {
 	}
 	cacheMu.Unlock()
 
-	// Premultiplied-add for colour, but force output alpha to 255 wherever the
-	// tint mask has presence. Some desktop environments dim or recolour tray
-	// icons that contain sub-255 alpha pixels (interpreting them as "symbolic"
-	// or applying panel-foreground tinting), so we hand the panel a fully
-	// opaque pixel and let the colour math itself produce the soft gradient
-	// (bright tint where mask alpha is high, dark/black where it's low).
+	// Premultiplied-add for colour. Output alpha is either the sum of base+tint
+	// alphas (when softAlpha is on — preserves mask gradient soft edges) or
+	// forced to 255 (default — required for trays that mishandle alpha and
+	// would otherwise dim/recolour the icon).
 	b := baseImg.Bounds()
 	out := image.NewNRGBA(b)
 	draw.Draw(out, b, baseImg, b.Min, draw.Src)
@@ -147,7 +161,16 @@ func Compose(tint *color.RGBA, static bool) ([]byte, error) {
 				bl = 255
 			}
 
-			out.SetNRGBA(x, y, color.NRGBA{uint8(r), uint8(g), uint8(bl), 0xff})
+			outA := uint8(0xff)
+			if softAlpha {
+				a := uint16(ba) + uint16(ta)
+				if a > 255 {
+					a = 255
+				}
+				outA = uint8(a)
+			}
+
+			out.SetNRGBA(x, y, color.NRGBA{uint8(r), uint8(g), uint8(bl), outA})
 		}
 	}
 

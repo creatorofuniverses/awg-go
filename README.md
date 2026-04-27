@@ -166,6 +166,23 @@ tunnel. Both `base.png` and `tint.png` are composited as authored; every
 Invalid hex values fall back to the auto-hashed colour with a log warning.
 TOML changes require a process restart.
 
+### Icon rendering: soft vs opaque alpha
+
+Some tray hosts (Hyprland's waybar, certain GNOME setups) misrender tray
+icons that contain semi-transparent pixels — dimming the colour or replacing
+it with the panel foreground colour. The default rendering is therefore
+"every visible pixel α=255", trading mask-gradient soft edges for guaranteed
+correct colour.
+
+If your tray respects alpha properly (KDE Plasma, GNOME Shell with the
+AppIndicator extension respect partial alpha well), you can opt in to
+mask-driven soft edges:
+
+```toml
+[icons]
+soft_alpha = true
+```
+
 ## Custom icon shapes (developer)
 
 The icon is composed at runtime from two embedded PNGs in `internal/icons/`:

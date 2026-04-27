@@ -54,6 +54,7 @@ func main() {
 		log.Warn("unknown palette flavour; falling back to mocha", "flavour", cfg.Palette.Flavour)
 	}
 	palette := icons.Palettes[flavour]
+	icons.SetSoftAlpha(cfg.Icons.SoftAlpha)
 
 	resolve := makeResolver(log, cfg.Tunnels, palette)
 

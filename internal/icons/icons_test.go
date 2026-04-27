@@ -102,6 +102,24 @@ func TestCompose_StaticDiffersFromTinted(t *testing.T) {
 	}
 }
 
+func TestSetSoftAlpha_ChangesOutput(t *testing.T) {
+	red := color.RGBA{0xff, 0x00, 0x00, 0xff}
+	SetSoftAlpha(false)
+	opaque, err := Compose(&red, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	SetSoftAlpha(true)
+	soft, err := Compose(&red, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	SetSoftAlpha(false) // restore default for other tests
+	if bytes.Equal(opaque, soft) {
+		t.Fatal("opaque and soft-alpha modes produced identical output — toggle has no effect")
+	}
+}
+
 func TestCompose_StaticCaches(t *testing.T) {
 	a, err := Compose(nil, true)
 	if err != nil {
