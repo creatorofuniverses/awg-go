@@ -20,7 +20,8 @@ internal/
   privsh/      Privileged interface + Sudo impl (sudo -n) + Fake test double
   backend/     Backend interface + AWG impl (shells out to awg-quick via Privileged)
   tunnel/      Tunnel struct + Registry (config discovery, state, ActiveName)
-  icons/       12-colour palette + FNV hash + alpha-mask compose() with cache
+  icons/       Catppuccin palettes (4 flavours × 12) + ColourFromName +
+               two-layer Compose(*RGBA) over base.png + tint.png
   netwatch/    Watcher interface; netlink subscriber + sysfs-poll fallback
   notify/      notify-send wrapper with Noop fallback
   tray/        slytomcat/systray glue: menu, click handlers, single-active logic
@@ -34,8 +35,15 @@ touches everything else; everything else stays narrow.
 - Privilege model: `sudo -n awg-quick up/down` via NOPASSWD sudoers entry.
 - Single-active model: clicking another tunnel auto-downs the current one.
 - Status: netlink `LinkUpdate` subscription, fall back to 5s `/sys/class/net/` poll if subscribe fails.
-- Per-config colour: deterministic FNV hash → 12-colour palette (Tailwind 500s). Sidecar TOML override is deferred to v2.
+- Per-config colour: deterministic FNV hash → palette modulo. Default palette
+  is Catppuccin Mocha; the user can switch flavour via `[palette] flavour = …`
+  in `~/.config/awg-go/config.toml`. Per-tunnel TOML overrides accept either
+  a `"#rrggbb"` hex colour or `"none"` (suppress the indicator entirely).
 - Tunnel name validation: regex `^[A-Za-z0-9_-]{1,15}$` (matches Linux `IFNAMSIZ-1`).
+- Icon composition: `base.png` (RGBA, always rendered) + `tint.png` (alpha-only
+  indicator region). `Compose(nil)` returns base only; `Compose(&rgba)` tints
+  the indicator. State enum was removed in v2 — the tray decides whether to
+  pass nil or a colour.
 - Icon `Up` detection on netlink: `ev.Attrs().Flags & net.FlagUp != 0` — DO NOT regress to checking `Header.Type == RTM_NEWLINK`, that fires for any link change including MTU/address.
 
 ## Out of scope for v1 (don't add unless asked)
@@ -45,7 +53,6 @@ touches everything else; everything else stays narrow.
 - In-app config editing.
 - i18n (English only; strings centralised in `internal/tray/strings.go`).
 - Packaging (deb/rpm/flatpak).
-- inotify watcher for the config dir (re-glob on menu open is enough for v1).
 
 ## Common commands
 

@@ -120,6 +120,56 @@ A running tray will not pick up a new binary until restarted.
 A default config file is created on first run at
 `~/.config/awg-go/config.toml`. Currently only `log_level` is honoured.
 
+## Customisation
+
+The config file at `~/.config/awg-go/config.toml` accepts two optional sections.
+
+### Palette flavour
+
+awg-go's default palette is [Catppuccin Mocha](https://catppuccin.com/palette).
+You can switch to any of the four flavours:
+
+```toml
+[palette]
+flavour = "latte"   # mocha | latte | frappe | macchiato
+```
+
+Names are case-insensitive. An unknown flavour falls back to mocha with a
+warning in the log.
+
+### Per-tunnel colour overrides
+
+By default each tunnel is auto-assigned a colour from the palette via a stable
+hash of its name. Override on a per-tunnel basis under `[tunnels.<name>]`:
+
+```toml
+[tunnels.office]
+colour = "#a6e3a1"   # any "#rrggbb" hex
+
+[tunnels.home]
+colour = "none"      # never render the indicator dot for this tunnel
+```
+
+`colour = "none"` is useful when you only have one tunnel and don't need a
+colour identifier — the icon stays clean (just the base shield) whether the
+tunnel is up or down.
+
+Invalid hex values fall back to the auto-hashed colour with a log warning.
+TOML changes require a process restart.
+
+## Custom icon shapes (developer)
+
+The icon is composed at runtime from two embedded PNGs in `internal/icons/`:
+
+- `base.png` (32×32 RGBA) — the always-rendered background. Authored in a
+  panel-neutral tone so it reads on both light and dark panels.
+- `tint.png` (32×32, alpha-only) — defines the indicator region. RGB is
+  ignored; only the alpha channel matters. The tunnel colour is composited
+  over the base wherever this mask has alpha > 0.
+
+To replace the shape, drop in your own PNGs at the same paths and rebuild.
+Both files are embedded via `go:embed`.
+
 ## Limitations (v1)
 
 - Single-active only: clicking another tunnel auto-disconnects the current one.
