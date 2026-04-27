@@ -35,6 +35,21 @@ sudo sed -i "s/%user%/$USER/" /etc/sudoers.d/awg-go
 sudo visudo -c -f /etc/sudoers.d/awg-go
 ```
 
+### Make the config directory listable
+
+AmneziaWG's default install makes `/etc/amnezia/amneziawg/` mode `700 root:root`,
+which means awg-go can't even see the filenames. The tray only ever reads
+filenames — never file contents — so it's enough to make the directory itself
+readable while the individual `.conf` files (which contain private keys) stay
+`600 root:root`:
+
+```sh
+sudo chmod 755 /etc/amnezia/amneziawg
+```
+
+After this, `ls /etc/amnezia/amneziawg/` works as your user but `cat <file>.conf`
+still requires root.
+
 ## Autostart
 
 Copy `awg-go.desktop` to `~/.config/autostart/`:
