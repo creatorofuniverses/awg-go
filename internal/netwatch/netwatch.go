@@ -3,9 +3,15 @@ package netwatch
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/vishvananda/netlink"
 )
+
+// linkIsUp reports whether the link described by ev has the IFF_UP flag set.
+func linkIsUp(ev netlink.LinkUpdate) bool {
+	return ev.Attrs().Flags&net.FlagUp != 0
+}
 
 type StateEvent struct {
 	Name string
@@ -82,7 +88,7 @@ func Start(ctx context.Context, known []string) (Watcher, error) {
 				if _, want := knownSet[name]; !want {
 					continue
 				}
-				up := ev.Header.Type == 16 // RTM_NEWLINK
+				up := linkIsUp(ev)
 				select {
 				case w.out <- StateEvent{Name: name, Up: up}:
 				case <-ctx.Done():

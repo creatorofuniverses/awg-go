@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/slytomcat/systray"
 
@@ -26,6 +27,9 @@ type Tray struct {
 
 	items map[string]*systray.MenuItem
 	quit  *systray.MenuItem
+
+	pendingDownMu sync.Mutex
+	pendingDown   string // tunnel name the user explicitly requested down
 }
 
 func (t *Tray) Run() {
@@ -111,7 +115,17 @@ func (t *Tray) handleEvent(ev netwatch.StateEvent) {
 	case ev.Up && !wasUp:
 		t.Notify.Send(titleApp, fmt.Sprintf(notifyConnected, ev.Name))
 	case !ev.Up && wasUp:
-		t.Notify.Send(titleApp, fmt.Sprintf(notifyDisconnected, ev.Name))
+		t.pendingDownMu.Lock()
+		userDown := t.pendingDown == ev.Name
+		if userDown {
+			t.pendingDown = ""
+		}
+		t.pendingDownMu.Unlock()
+		if userDown {
+			t.Notify.Send(titleApp, fmt.Sprintf(notifyDisconnected, ev.Name))
+		} else {
+			t.Notify.Send(titleApp, fmt.Sprintf(notifyDropped, ev.Name))
+		}
 	}
 }
 
@@ -121,14 +135,30 @@ func (t *Tray) handleClick(name string) {
 		return
 	}
 	if tn.Up {
+		t.pendingDownMu.Lock()
+		t.pendingDown = name
+		t.pendingDownMu.Unlock()
 		if err := t.Backend.Down(t.Ctx, name); err != nil {
+			t.pendingDownMu.Lock()
+			if t.pendingDown == name {
+				t.pendingDown = ""
+			}
+			t.pendingDownMu.Unlock()
 			t.notifyErr(notifyDownFailed, name, err)
 		}
 		return
 	}
 	// single-active: down whatever is currently up
 	if cur := t.Registry.ActiveName(); cur != "" && cur != name {
+		t.pendingDownMu.Lock()
+		t.pendingDown = cur
+		t.pendingDownMu.Unlock()
 		if err := t.Backend.Down(t.Ctx, cur); err != nil {
+			t.pendingDownMu.Lock()
+			if t.pendingDown == cur {
+				t.pendingDown = ""
+			}
+			t.pendingDownMu.Unlock()
 			t.notifyErr(notifyDownFailed, cur, err)
 			return
 		}
