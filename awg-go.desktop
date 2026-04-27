@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=awg-go
+Comment=AmneziaWG tray indicator
+Exec=awg-go
+Icon=network-vpn
+Terminal=false
+Categories=Network;
+X-GNOME-Autostart-enabled=true
