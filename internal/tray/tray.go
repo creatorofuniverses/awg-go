@@ -188,13 +188,18 @@ func trim(s string) string {
 
 func (t *Tray) refreshIcon() {
 	var tint *color.RGBA
+	var static bool
 	if cur := t.Registry.ActiveName(); cur != "" {
 		if tn := t.Registry.Get(cur); tn != nil && !tn.NoTint {
-			c := tn.Colour
-			tint = &c
+			if tn.Static {
+				static = true
+			} else {
+				c := tn.Colour
+				tint = &c
+			}
 		}
 	}
-	png, err := icons.Compose(tint)
+	png, err := icons.Compose(tint, static)
 	if err != nil {
 		t.Log.Error("compose icon", "err", err)
 		return

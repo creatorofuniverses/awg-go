@@ -85,18 +85,21 @@ func main() {
 }
 
 func makeResolver(log *slog.Logger, overrides map[string]config.TunnelConfig, palette []color.RGBA) tunnel.ColourResolver {
-	return func(name string) (color.RGBA, bool) {
+	return func(name string) (color.RGBA, bool, bool) {
 		if tc, ok := overrides[name]; ok && tc.Colour != "" {
 			lower := strings.ToLower(strings.TrimSpace(tc.Colour))
-			if lower == "none" {
-				return color.RGBA{}, true
+			switch lower {
+			case "none":
+				return color.RGBA{}, true, false
+			case "static":
+				return color.RGBA{}, false, true
 			}
 			if rgba, ok := parseHexColour(lower); ok {
-				return rgba, false
+				return rgba, false, false
 			}
 			log.Warn("invalid tunnel colour; falling back to auto-hash", "tunnel", name, "value", tc.Colour)
 		}
-		return icons.ColourFromName(name, palette), false
+		return icons.ColourFromName(name, palette), false, false
 	}
 }
 

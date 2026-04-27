@@ -7,11 +7,12 @@ import (
 	"sync"
 )
 
-// ColourResolver returns the resolved colour for a tunnel name, plus whether
-// the tunnel should be rendered without an indicator (no tint) when connected.
-// It is supplied by main and encapsulates: explicit per-tunnel overrides
-// (TOML), the default palette, and "none" semantics.
-type ColourResolver func(name string) (rgba color.RGBA, noTint bool)
+// ColourResolver returns the resolved render parameters for a tunnel name:
+// the indicator colour, plus mode flags noTint (render base only) and static
+// (render base + tint as-authored, ignoring colour). It is supplied by main
+// and encapsulates per-tunnel TOML overrides, the default palette, and the
+// "none"/"static" keyword semantics.
+type ColourResolver func(name string) (rgba color.RGBA, noTint bool, static bool)
 
 type Registry struct {
 	dir      string
@@ -36,23 +37,25 @@ func (r *Registry) Discover() error {
 	r.m = map[string]*Tunnel{}
 	for _, p := range matches {
 		name := strings.TrimSuffix(filepath.Base(p), ".conf")
-		c, nt := r.resolver(name)
+		c, nt, st := r.resolver(name)
 		r.m[name] = &Tunnel{
 			Name:    name,
 			Backend: r.backend,
 			Path:    p,
 			Colour:  c,
 			NoTint:  nt,
+			Static:  st,
 		}
 	}
 	return nil
 }
 
 func (r *Registry) Add(t *Tunnel) {
-	if t.Colour.A == 0 {
-		c, nt := r.resolver(t.Name)
+	if t.Colour.A == 0 && !t.NoTint && !t.Static {
+		c, nt, st := r.resolver(t.Name)
 		t.Colour = c
 		t.NoTint = nt
+		t.Static = st
 	}
 	r.mu.Lock()
 	r.m[t.Name] = t

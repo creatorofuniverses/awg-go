@@ -56,15 +56,37 @@ var (
 	cacheMu       sync.Mutex
 	cacheTinted   = map[color.RGBA][]byte{}
 	cacheBaseOnly []byte
+	cacheStatic   []byte
 )
 
-// Compose renders the tray icon. nil tint means "base only" (used for the
-// disconnected state, and for tunnels with colour="none"). A non-nil tint
-// renders the tint mask in that colour on top of the base.
-func Compose(tint *color.RGBA) ([]byte, error) {
+// Compose renders the tray icon.
+//
+//   - (nil, false)  → base only. Disconnected state, or tunnels with colour="none".
+//   - (&c,  false)  → base + tint mask painted in colour c.
+//   - (_,   true)   → base + tint composited as-authored (tint.png's RGB preserved,
+//     tint argument ignored). For tunnels with colour="static".
+func Compose(tint *color.RGBA, static bool) ([]byte, error) {
 	loadAssets()
 	if assetsErr != nil {
 		return nil, assetsErr
+	}
+
+	if static {
+		cacheMu.Lock()
+		if cacheStatic != nil {
+			out := cacheStatic
+			cacheMu.Unlock()
+			return out, nil
+		}
+		cacheMu.Unlock()
+		bs, err := composeStatic()
+		if err != nil {
+			return nil, err
+		}
+		cacheMu.Lock()
+		cacheStatic = bs
+		cacheMu.Unlock()
+		return bs, nil
 	}
 
 	if tint == nil {
@@ -120,6 +142,16 @@ func Compose(tint *color.RGBA) ([]byte, error) {
 	cacheTinted[key] = bs
 	cacheMu.Unlock()
 	return bs, nil
+}
+
+// composeStatic renders base + tint as-authored using draw.Over (standard
+// source-over alpha compositing). Both layers' RGB channels are preserved.
+func composeStatic() ([]byte, error) {
+	b := baseImg.Bounds()
+	out := image.NewNRGBA(b)
+	draw.Draw(out, b, baseImg, b.Min, draw.Src)
+	draw.Draw(out, b, tintImg, b.Min, draw.Over)
+	return encode(out)
 }
 
 func encode(img image.Image) ([]byte, error) {

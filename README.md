@@ -149,11 +149,19 @@ colour = "#a6e3a1"   # any "#rrggbb" hex
 
 [tunnels.home]
 colour = "none"      # never render the indicator dot for this tunnel
+
+[tunnels.work]
+colour = "static"    # render base.png + tint.png as-authored, ignoring colour
 ```
 
 `colour = "none"` is useful when you only have one tunnel and don't need a
 colour identifier — the icon stays clean (just the base shield) whether the
 tunnel is up or down.
+
+`colour = "static"` is for when your icon assets carry their own design
+(e.g. a multi-colour logo) and you don't want awg-go recolouring them per
+tunnel. Both `base.png` and `tint.png` are composited as authored; every
+"static" tunnel looks identical.
 
 Invalid hex values fall back to the auto-hashed colour with a log warning.
 TOML changes require a process restart.

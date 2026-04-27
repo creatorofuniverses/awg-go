@@ -9,4 +9,5 @@ type Tunnel struct {
 	Up      bool
 	Colour  color.RGBA
 	NoTint  bool
+	Static  bool
 }
