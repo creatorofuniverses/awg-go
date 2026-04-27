@@ -50,13 +50,70 @@ sudo chmod 755 /etc/amnezia/amneziawg
 After this, `ls /etc/amnezia/amneziawg/` works as your user but `cat <file>.conf`
 still requires root.
 
+## Install the binary
+
+Once `./build.sh` has produced `awg-go`, drop it somewhere on `PATH`:
+
+```sh
+install -D -m 0755 awg-go ~/.local/bin/awg-go
+```
+
+(`~/.local/bin` is on `PATH` by default on most modern desktops; if not, add it
+to your shell init.)
+
 ## Autostart
 
-Copy `awg-go.desktop` to `~/.config/autostart/`:
+Pick one of the two options below — don't enable both.
+
+### Option A: XDG `.desktop` autostart (default desktop behaviour)
 
 ```sh
 cp awg-go.desktop ~/.config/autostart/
 ```
+
+The desktop file expects `awg-go` on `PATH` (e.g. installed at
+`~/.local/bin/awg-go` per the previous step). GNOME/KDE/XFCE/Cinnamon/MATE all
+honour this directory.
+
+### Option B: systemd user service
+
+If you prefer systemd to manage the lifecycle (auto-restart on crash, journal
+logs, `systemctl --user status awg-go`):
+
+```sh
+install -D -m 0644 awg-go.service ~/.config/systemd/user/awg-go.service
+systemctl --user daemon-reload
+systemctl --user enable --now awg-go.service
+```
+
+Check status / logs:
+
+```sh
+systemctl --user status awg-go.service
+journalctl --user -u awg-go.service -f
+```
+
+The unit binds to `graphical-session.target`, so it starts when your desktop
+session starts and stops when it ends. The binary path is `%h/.local/bin/awg-go`
+— if you installed elsewhere, edit `ExecStart` before enabling.
+
+## Update
+
+When a new version is published, rebuild from source and replace the binary:
+
+```sh
+cd /path/to/awg-go
+git pull
+./build.sh
+install -m 0755 awg-go ~/.local/bin/awg-go
+```
+
+Then restart whichever autostart you chose:
+
+- **systemd user service:** `systemctl --user restart awg-go.service`
+- **`.desktop` autostart (or running manually):** `pkill awg-go && (~/.local/bin/awg-go &)`
+
+A running tray will not pick up a new binary until restarted.
 
 ## Configuration
 
