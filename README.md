@@ -129,9 +129,15 @@ systemctl --user status awg-go.service
 journalctl --user -u awg-go.service -f
 ```
 
-The unit binds to `graphical-session.target`, so it starts when your desktop
-session starts and stops when it ends. The binary path is `%h/.local/bin/awg-go`
-— if you installed elsewhere, edit `ExecStart` before enabling.
+The unit installs into `default.target` (always present in user mode) with a
+soft `Wants=`/`After=graphical-session.target`, so it starts at user-session
+boot and orders itself behind a graphical session if your DE activates one.
+GNOME, KDE Plasma, and Hyprland with systemd integration all do; on stock
+Hyprland the soft dep is simply skipped — the tray itself retries connecting
+to the panel host until it appears.
+
+The binary path is `%h/.local/bin/awg-go` — if you installed elsewhere, edit
+`ExecStart` before enabling.
 
 ## Update
 

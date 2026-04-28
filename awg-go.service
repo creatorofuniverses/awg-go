@@ -1,8 +1,11 @@
 [Unit]
 Description=AmneziaWG tray indicator
 Documentation=https://github.com/kowalski/awg-go
+# graphical-session.target is only activated by some session managers
+# (GNOME, KDE, sd-integrated Hyprland). Use a soft Wants/After so we order
+# behind it when present but don't fail when it isn't.
+Wants=graphical-session.target
 After=graphical-session.target
-PartOf=graphical-session.target
 
 [Service]
 ExecStart=%h/.local/bin/awg-go
@@ -10,4 +13,4 @@ Restart=on-failure
 RestartSec=3
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target
